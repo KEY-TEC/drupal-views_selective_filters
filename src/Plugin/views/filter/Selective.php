@@ -11,6 +11,8 @@ use Drupal\Component\Utility\SafeMarkup;
 use Drupal\Core\Entity\ContentEntityTypeInterface;
 use Drupal\Core\Form\FormState;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\taxonomy\Entity\Term;
+use Drupal\taxonomy\Plugin\views\argument\Taxonomy;
 use Drupal\views\Plugin\views\display\DisplayPluginBase;
 use Drupal\views\Plugin\views\filter\InOperator;
 use Drupal\views\ViewExecutable;
@@ -38,6 +40,8 @@ class Selective extends InOperator {
      * @var array
      */
     protected static $results;
+
+    protected $terms;
 
     /**
      * {@inheritdoc}
@@ -220,6 +224,8 @@ class Selective extends InOperator {
         $options['KDESC'] = $this->t('Custom key descending (ksort reverse)');
         $options['ASC'] = $this->t('Custom ascending (asort)');
         $options['DESC'] = $this->t('Custom descending (asort reverse)');
+        $options['TAXONOMY_WEIGHT_ASC'] = $this->t('Taxonomy weight ascending');
+        $options['TAXONOMY_WEIGHT_DESC'] = $this->t('Taxonomy weight descending');
         // TODO: Allow the use of view's sorts!
         //foreach ($this->view->display_handler->handlers['sort'] as $key => $handler) {
         //  $options[$handler->options['id']] = $handler->definition['group'] . ': ' . $handler->definition['title'];
@@ -493,6 +499,14 @@ class Selective extends InOperator {
                 case 'ORIG':
                     $oids = static::filterOriginalOptions($this->getOriginalOptions(), array_keys($oids));
                     break;
+                case 'TAXONOMY_WEIGHT_ASC':
+                    $this->terms = Term::loadMultiple(array_keys($oids));
+                    uksort($oids, [$this, 'taxonomyWeightAsc']);
+                    break;
+                case 'TAXONOMY_WEIGHT_DESC':
+                    $this->terms = Term::loadMultiple(array_keys($oids));
+                    uksort($oids, [$this, 'taxonomyWeightDesc']);
+                    break;
                 case 'NONE':
                     break;
                 default:
@@ -509,6 +523,36 @@ class Selective extends InOperator {
         }
 
         return static::$results[$signature];
+    }
+
+    private function taxonomyWeightDesc($tid1, $tid2){
+      return $this->taxonomyWeightSort($tid1, $tid2, 'DESC');
+    }
+    private function taxonomyWeightAsc($tid1, $tid2){
+      return $this->taxonomyWeightSort($tid1, $tid2, 'ASC');
+    }
+
+    private function taxonomyWeightSort($tid1, $tid2, $order = 'ASC'){
+
+      if(empty($this->terms) || empty($this->terms[$tid1]) || empty($this->terms[$tid2])) {
+        return 0;
+      }
+
+      $term1 = $this->terms[$tid1];
+      $term2 = $this->terms[$tid2];
+      if($term1->getWeight() == $term2->getWeight()){
+        return 0;
+      }
+
+      if($order == 'ASC'){
+        $r1 = -1;
+        $r2 = 1;
+      }else{
+        $r1 = 1;
+        $r2 = -1;
+      }
+
+      return ($term1->getWeight() < $term2->getWeight()) ? $r1 : $r2;
     }
 
     /**
