@@ -83,6 +83,7 @@ class Selective extends InOperator {
         // inside the cloned view used to obtain the selective values and thus this
         // is to prevent infinite recursive loop.
         if (empty($this->view->selective_oids) && !empty($this->view->inited)) {
+            $x = $this->getOids();
             $this->valueOptions = $this->getOids();
             // TODO: Omit null values in result: they are improperly handled.
             // When constructing the query.
@@ -465,7 +466,7 @@ class Selective extends InOperator {
                     }
                     else {
                         // @todo This double escapes markup.
-                        $value = (string) $style->getField($row->index, $field_id);
+                        $value = (string) htmlspecialchars_decode(strip_tags($style->getField($row->index, $field_id)));
                     }
 
                     if (NULL !== $value) {
