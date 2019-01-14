@@ -8,9 +8,11 @@
 namespace Drupal\views_selective_filters\Plugin\views\filter;
 
 use Drupal\Component\Utility\SafeMarkup;
+use Drupal\Core\Entity\ContentEntityBase;
 use Drupal\Core\Entity\ContentEntityTypeInterface;
 use Drupal\Core\Form\FormState;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Language\LanguageManager;
 use Drupal\taxonomy\Entity\Term;
 use Drupal\taxonomy\Plugin\views\argument\Taxonomy;
 use Drupal\views\Plugin\views\display\DisplayPluginBase;
@@ -456,17 +458,22 @@ class Selective extends InOperator {
             if ($this->options['selective_entity_type']) {
                 $entityTypeStorage = \Drupal::entityTypeManager()->getStorage($this->options['selective_entity_type']);
             }
-
+            $current_language_id = \Drupal::languageManager()->getCurrentLanguage()->getId();
             foreach ($view_copy->result as $row) {
                 $keys = $field->getValue($row);
 
                 foreach ((array) $keys as $key) {
                     $value = NULL;
 
-                    if (NULL !== $entityTypeStorage) {
+                    if (NULL !== $entityTypeStorage && $key) {
                         $entity = $entityTypeStorage->load($key);
 
                         if ($entity) {
+                            if ($entity instanceof ContentEntityBase &&
+                              $entity->hasTranslation($current_language_id)
+                            ) {
+                              $entity = $entity->getTranslation($current_language_id);
+                            }
                             $value = $entity->label();
                         }
                     }
